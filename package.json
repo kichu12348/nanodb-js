@@ -1,7 +1,7 @@
 {
   "name": "nanodb",
   "version": "1.0.0",
-  "description": "",
+  "description": "A lightweight, embeddable nosql database library",
   "main": "dist/index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
@@ -9,7 +9,7 @@
     "dev":"ts-node-dev index.ts"
   },
   "keywords": [],
-  "author": "",
+  "author": "Mahadevan Reji",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
