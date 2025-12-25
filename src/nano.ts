@@ -3,7 +3,7 @@ import path from "path";
 
 // Automatically detect .dll (Windows) or .so (Linux/Mac)
 const ext = process.platform === "win32" ? ".dll" : ".so";
-const libPath = path.resolve(path.join(__dirname,"native"), "nanodb" + ext);
+const libPath = path.resolve(path.join(__dirname, "native"), "nanodb" + ext);
 
 const lib = koffi.load(libPath);
 
@@ -68,7 +68,12 @@ class Find {
     const queryStr = JSON.stringify(this.query);
 
     // Call C Function: NanoFind(colName, query, limit,skip)
-    const resStr = NanoFind(this.collection.name, queryStr, this.limitCount,this.skipCount);
+    const resStr = NanoFind(
+      this.collection.name,
+      queryStr,
+      this.limitCount,
+      this.skipCount
+    );
 
     if (!resStr) return [];
     return JSON.parse(resStr);
@@ -130,7 +135,8 @@ class Collection {
   updateById(id: number, update: any): any | null {
     const uStr = JSON.stringify(update);
     const resStr = NanoUpdateById(this.name, id, uStr);
-    return resStr ? JSON.parse(resStr) : null;
+    if (!resStr) throw new Error("An Error Occured");
+    return JSON.parse(resStr)
   }
 
   // Delete by Query (returns count of deleted items)
