@@ -7,9 +7,11 @@ const libPath = path.resolve(path.join(__dirname, "native"), "nanodb" + ext);
 
 const lib = koffi.load(libPath);
 
-// (Mapping C types to JS types)
+// --- 1. Mapping C Functions to JS ---
+
 const NanoInit = lib.func("NanoInit", "void", ["str"]);
 const NanoClose = lib.func("NanoClose", "longlong", []);
+
 const NanoGetCollections = lib.func("NanoGetCollections", "str", []);
 const NanoCreateCollection = lib.func("NanoCreateCollection", "longlong", [
   "str",
@@ -27,6 +29,13 @@ const NanoFind = lib.func("NanoFind", "str", [
 const NanoFindOne = lib.func("NanoFindOne", "str", ["str", "str"]);
 const NanoFindById = lib.func("NanoFindById", "str", ["str", "longlong"]);
 
+// [NEW] Vector Search Binding
+const NanoVectorSearch = lib.func("NanoVectorSearch", "str", [
+  "str", // Collection Name
+  "str", // Query Vector JSON
+  "longlong", // Top K
+]);
+
 const NanoUpdateById = lib.func("NanoUpdateById", "str", [
   "str",
   "longlong",
@@ -40,7 +49,7 @@ const NanoDeleteById = lib.func("NanoDeleteById", "longlong", [
 ]);
 const NanoDeleteMany = lib.func("NanoDeleteMany", "longlong", ["str", "str"]);
 
-// --- 3. The Wrapper Classes ---
+// --- 2. The Wrapper Classes ---
 
 class Find {
   private collection: Collection;
@@ -66,15 +75,13 @@ class Find {
 
   exec(): any[] {
     const queryStr = JSON.stringify(this.query);
-
-    // Call C Function: NanoFind(colName, query, limit,skip)
+    // Call C Function: NanoFind(colName, query, limit, skip)
     const resStr = NanoFind(
       this.collection.name,
       queryStr,
       this.limitCount,
-      this.skipCount
+      this.skipCount,
     );
-
     if (!resStr) return [];
     return JSON.parse(resStr);
   }
@@ -82,12 +89,12 @@ class Find {
 
 class Collection {
   public name: string;
-
   constructor(name: string) {
     this.name = name;
   }
 
-  // Insert returns the new ID (number)
+  // Insert returns the new ID (number).
+  // NOTE: To index vectors, include an "_embeddings": [float, float...] field in your doc.
   insert(doc: any): number {
     const jsonStr = JSON.stringify(doc);
     const id = NanoInsert(this.name, jsonStr);
@@ -101,6 +108,14 @@ class Collection {
     const resStr = NanoInsertMany(this.name, jsonStr);
     if (!resStr) throw new Error("InsertMany failed");
     return JSON.parse(resStr);
+  }
+
+  // [NEW] Vector Search
+  // Returns array of Document IDs that are closest to the query vector
+  vectorSearch(queryVector: number[], topK: number = 5): number[] {
+    const vecStr = JSON.stringify(queryVector);
+    const resStr = NanoVectorSearch(this.name, vecStr, topK);
+    return resStr ? JSON.parse(resStr) : [];
   }
 
   // Returns a Find builder chain
@@ -117,7 +132,6 @@ class Collection {
 
   // Returns document by ID
   findById(id: number): any | null {
-    // Note: Your Go engine expects int64 (longlong), so we pass number directly
     const resStr = NanoFindById(this.name, id);
     return resStr ? JSON.parse(resStr) : null;
   }
@@ -135,8 +149,8 @@ class Collection {
   updateById(id: number, update: any): any | null {
     const uStr = JSON.stringify(update);
     const resStr = NanoUpdateById(this.name, id, uStr);
-    if (!resStr) throw new Error("An Error Occured");
-    return JSON.parse(resStr)
+    if (!resStr) throw new Error("An Error Occurred");
+    return JSON.parse(resStr);
   }
 
   // Delete by Query (returns count of deleted items)
@@ -145,7 +159,7 @@ class Collection {
     return NanoDeleteMany(this.name, qStr);
   }
 
-  // Delete by ID (returns 1 for success, -1 for fail)
+  // Delete by ID (returns true for success)
   deleteById(id: number): boolean {
     const res = NanoDeleteById(this.name, id);
     return res === 1;
@@ -162,6 +176,7 @@ class NanoDB {
 
   collection(name: string): Collection {
     const res = NanoCreateCollection(name);
+    // 0 = exists, 1 = created, -1 = error
     if (res === -1) {
       console.warn(`Warning: Issue loading/creating collection ${name}`);
     }
@@ -182,5 +197,4 @@ class NanoDB {
   }
 }
 
-// Default export
 export default NanoDB;
