@@ -1,13 +1,12 @@
 import koffi from "koffi";
 import path from "path";
 
-// Automatically detect .dll (Windows) or .so (Linux/Mac)
 const ext = process.platform === "win32" ? ".dll" : ".so";
 const libPath = path.resolve(path.join(__dirname, "native"), "nanodb" + ext);
 
 const lib = koffi.load(libPath);
 
-// --- 1. Mapping C Functions to JS ---
+// --- Mapping C Functions to JS ---
 
 const NanoInit = lib.func("NanoInit", "void", ["str"]);
 const NanoClose = lib.func("NanoClose", "longlong", []);
@@ -29,7 +28,7 @@ const NanoFind = lib.func("NanoFind", "str", [
 const NanoFindOne = lib.func("NanoFindOne", "str", ["str", "str"]);
 const NanoFindById = lib.func("NanoFindById", "str", ["str", "longlong"]);
 
-// [NEW] Vector Search Binding
+// Vector Search Binding
 const NanoVectorSearch = lib.func("NanoVectorSearch", "str", [
   "str", // Collection Name
   "str", // Query Vector JSON
@@ -49,7 +48,7 @@ const NanoDeleteById = lib.func("NanoDeleteById", "longlong", [
 ]);
 const NanoDeleteMany = lib.func("NanoDeleteMany", "longlong", ["str", "str"]);
 
-// --- 2. The Wrapper Classes ---
+// --- The Wrapper Classes ---
 
 class Find {
   private collection: Collection;
@@ -192,7 +191,7 @@ class NanoDB {
   close(): void {
     const res = NanoClose();
     if (res !== 1) {
-      console.error("❌ Error closing database.");
+      console.error("Error closing database.");
     }
   }
 }
